@@ -7,7 +7,9 @@ import { sanitizeHead, sanitizeBody } from "@/helpers/sanitize";
 import { replaceBody } from "@/helpers/replace-body";
 import { twMerge } from "tailwind-merge";
 import Script from "next/script";
-// import { useWebflowReInit } from "@/lib/use-webflow-reinit";
+import WebflowInit from "@/components/WebflowInit";
+import { getHtmlDataAttrs } from "@/helpers/getHtmlDataAttrs";
+import { Fragment } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +30,7 @@ export default async function RootLayout({
   if (!res.ok) throw new Error("Webflow page not found");
 
   const $ = cheerio.load(await res.text());
+  const htmlDataAttrs = getHtmlDataAttrs($);
 
   const headHtml = sanitizeHead($("head").html() ?? "");
   const bodyHtml = sanitizeBody($("body").html() ?? "");
@@ -66,10 +69,18 @@ export default async function RootLayout({
   });
 
   return (
-    <html className={htmlClasses} lang="en">
+    <html
+      {...htmlDataAttrs}
+      suppressHydrationWarning
+      className={twMerge(
+        htmlDataAttrs.class ?? "", // keep original classes
+        `${geistSans.variable} ${geistMono.variable}`,
+      )}
+      lang="en"
+    >
       <head>
         {/*<Script*/}
-        {/*  src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"*/}
+        {/*  src="https://ai-chatbot-pearl-kappa.vercel.app/api/pictocard/widget.js"*/}
         {/*  strategy="afterInteractive"*/}
         {/*/>*/}
         {parseHtml(headHtml, headOpts)}
@@ -77,14 +88,11 @@ export default async function RootLayout({
       <body
         className={twMerge(
           `${geistSans.variable} ${geistMono.variable} antialiased size-full`,
-          bodyClasses
+          bodyClasses,
         )}
       >
         {parseHtml(bodyHtml, bodyOpts)}
         {children}
-        {externalScripts.map((src) => (
-          <Script key={src} src={src} strategy="afterInteractive" />
-        ))}
 
         {/* /!* --- inject the interactions JSON so webflow.js can read it --- *!/ */}
         {inlineJSON.map(({ id, html }) => (
@@ -96,6 +104,27 @@ export default async function RootLayout({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ))}
+
+        {externalScripts.map((src) => {
+          const isWebflow = /webflow/i.test(src);
+          return (
+            <Fragment key={src}>
+              <link
+                rel="preload"
+                href={src}
+                as="script"
+                crossOrigin=""
+                fetchPriority="high"
+              />
+              <Script
+                src={src}
+                strategy={isWebflow ? "afterInteractive" : "beforeInteractive"}
+              />
+            </Fragment>
+          );
+        })}
+
+        <WebflowInit />
       </body>
     </html>
   );

@@ -24,3 +24,15 @@ body {
   /*color: var(--foreground);*/
   font-family: Arial, Helvetica, sans-serif;
 }
+
+[data-webflow-init] {
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  contain: paint;
+}
+
+[data-w-id] {
+  will-change: opacity, transform;
+  contain: paint;
+  transform: translateZ(0);
+}
